@@ -1,13 +1,19 @@
-import type { Note, Topic, TopicMatch, TopicProposal } from "../types/index.js";
+import type { Note, Topic, TopicMatch, TopicProposal, GenerationMetadata } from "../types/index.js";
 import type { LLMProvider } from "./types.js";
 
 interface OllamaGenerateResponse {
   response: string;
+  eval_count?: number;
 }
 
 interface OllamaConfig {
   baseUrl: string;
   model: string;
+}
+
+interface GenerateResult {
+  response: string;
+  metadata: GenerationMetadata;
 }
 
 export class OllamaProvider implements LLMProvider {
@@ -22,6 +28,7 @@ export class OllamaProvider implements LLMProvider {
   async classifyNote(note: Note, existingTopics: Topic[]): Promise<{
     rankedTopics: TopicMatch[];
     suggestedNewTopics: string[];
+    metadata: GenerationMetadata;
   }> {
     const topicList = existingTopics.map(t => t.name).join(", ");
     const prompt = `Analyze this note and classify it into topics.
@@ -43,15 +50,22 @@ Respond in JSON format:
 }`;
 
     try {
-      const response = await this.generate(prompt);
+      const { response, metadata } = await this.generate(prompt);
       const parsed = this.parseClassificationResponse(response, existingTopics);
-      return parsed;
+      return { ...parsed, metadata };
     } catch (error) {
-      return { rankedTopics: [], suggestedNewTopics: [] };
+      return { 
+        rankedTopics: [], 
+        suggestedNewTopics: [], 
+        metadata: { provider: 'ollama', model: this.model } 
+      };
     }
   }
 
-  async summarizeTopic(topic: Topic, notes: Note[]): Promise<string> {
+  async summarizeTopic(topic: Topic, notes: Note[]): Promise<{
+    content: string;
+    metadata: GenerationMetadata;
+  }> {
     const notesContent = notes
       .map(n => `## ${n.title}\n${n.content.substring(0, 1000)}`)
       .join("\n\n")
@@ -70,14 +84,17 @@ Provide a concise summary (2-3 paragraphs) that:
 Summary:`;
 
     try {
-      const response = await this.generate(prompt);
-      return response.trim();
+      const { response, metadata } = await this.generate(prompt);
+      return { content: response.trim(), metadata };
     } catch (error) {
       throw new Error(`Failed to generate summary: ${error}`);
     }
   }
 
-  async proposeTopics(notes: Note[]): Promise<TopicProposal[]> {
+  async proposeTopics(notes: Note[]): Promise<{
+    proposals: TopicProposal[];
+    metadata: GenerationMetadata;
+  }> {
     const notesContent = notes
       .slice(0, 20)
       .map(n => `## ${n.title}\n${n.content.substring(0, 500)}`)
@@ -98,11 +115,14 @@ Respond in JSON format:
 }`;
 
     try {
-      const response = await this.generate(prompt);
+      const { response, metadata } = await this.generate(prompt);
       const parsed = this.parseProposalsResponse(response);
-      return parsed;
+      return { proposals: parsed, metadata };
     } catch (error) {
-      return [];
+      return { 
+        proposals: [], 
+        metadata: { provider: 'ollama', model: this.model } 
+      };
     }
   }
 
@@ -115,7 +135,7 @@ Respond in JSON format:
     }
   }
 
-  private async generate(prompt: string): Promise<string> {
+  private async generate(prompt: string): Promise<GenerateResult> {
     const response = await fetch(`${this.baseUrl}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -131,7 +151,14 @@ Respond in JSON format:
     }
 
     const data = (await response.json()) as OllamaGenerateResponse;
-    return data.response;
+    return {
+      response: data.response,
+      metadata: {
+        provider: 'ollama',
+        model: this.model,
+        tokensUsed: data.eval_count,
+      },
+    };
   }
 
   private parseClassificationResponse(

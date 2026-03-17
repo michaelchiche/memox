@@ -16,6 +16,10 @@ export function parseNoteFrontmatter(fileContent: string): ParsedNote {
     topics: parsed.data.topics || [],
     created: parsed.data.created,
     updated: parsed.data.updated,
+    generatedBy: parsed.data.generated_by ? {
+      provider: parsed.data.generated_by.provider,
+      model: parsed.data.generated_by.model,
+    } : undefined,
   };
   
   return {
@@ -42,6 +46,9 @@ export function serializeNoteFrontmatter(
   }
   if (frontmatter.updated) {
     data.updated = frontmatter.updated;
+  }
+  if (frontmatter.generatedBy) {
+    data.generated_by = frontmatter.generatedBy;
   }
   
   if (Object.keys(data).length === 0) {
@@ -79,6 +86,23 @@ export function updateNoteFileFrontmatter(
     ...parsed.frontmatter,
     topics,
     updated: now,
+  };
+  
+  const updated = serializeNoteFrontmatter(parsed.body, frontmatter);
+  fs.writeFileSync(filePath, updated, "utf-8");
+}
+
+export function setGeneratedByFrontmatter(
+  filePath: string,
+  metadata: { provider: string; model: string }
+): void {
+  const fs = require("fs");
+  const content = fs.readFileSync(filePath, "utf-8");
+  const parsed = parseNoteFrontmatter(content);
+  
+  const frontmatter: NoteFrontmatter = {
+    ...parsed.frontmatter,
+    generatedBy: metadata,
   };
   
   const updated = serializeNoteFrontmatter(parsed.body, frontmatter);

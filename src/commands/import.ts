@@ -9,6 +9,8 @@ import { setNoteTopics } from "../lib/associations.js";
 import { getNoteByPath } from "../lib/notes.js";
 import { OllamaProvider } from "../providers/ollama.js";
 import type { LLMProvider } from "../providers/types.js";
+import { createGeneration } from "../lib/generations.js";
+import { setGeneratedByFrontmatter } from "../lib/frontmatter.js";
 import { globSync } from "glob";
 
 interface ImportOptions {
@@ -87,6 +89,11 @@ async function importNotes(
     
     try {
       const result = await provider.classifyNote(note, existingTopics);
+      
+      createGeneration('note', note.id, result.metadata);
+      
+      const noteFilePath = path.join(config.storePath, note.path);
+      setGeneratedByFrontmatter(noteFilePath, result.metadata);
       
       const choices: Array<{ value: string; label: string }> = [
         ...result.rankedTopics.slice(0, 3).map((t) => ({

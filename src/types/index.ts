@@ -13,6 +13,7 @@ export interface NoteFrontmatter {
   topics?: string[];
   created?: string;
   updated?: string;
+  generatedBy?: { provider: string; model: string };
 }
 
 export interface Topic {
@@ -29,6 +30,7 @@ export interface TopicSummary {
   version: number;
   content: string;
   generatedAt: Date;
+  generatedBy?: { provider: string; model: string };
 }
 
 export interface TopicMatch {
@@ -59,4 +61,20 @@ export interface ImportResult {
   suggestedTopics: TopicMatch[];
   proposedNewTopics: string[];
   existingTopics: Topic[];
+}
+
+export interface GenerationMetadata {
+  provider: string;
+  model: string;
+  tokensUsed?: number;
+}
+
+export interface Generation {
+  id: string;
+  entityType: 'note' | 'topic_summary' | 'topic_proposal';
+  entityId: string;
+  provider: string;
+  model: string;
+  tokensUsed?: number;
+  generatedAt: Date;
 }

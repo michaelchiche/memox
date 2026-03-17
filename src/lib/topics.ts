@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
-import type { Topic, TopicSummary } from "../types/index.js";
+import type { Topic, TopicSummary, GenerationMetadata } from "../types/index.js";
 import { getDatabase } from "./database.js";
+import { createGeneration, getSummaryGeneration } from "./generations.js";
 
 export const DEFAULT_TOPIC_NAME = "Non classée";
 
@@ -177,7 +178,8 @@ export function getOrCreateDefaultTopic(): Topic {
 
 export function addSummaryVersion(
   topicId: string,
-  content: string
+  content: string,
+  metadata?: GenerationMetadata
 ): TopicSummary {
   const db = getDatabase();
   
@@ -198,12 +200,17 @@ export function addSummaryVersion(
 
   stmt.run(id, topicId, nextVersion, content, now);
 
+  if (metadata) {
+    createGeneration('topic_summary', id, metadata);
+  }
+
   return {
     id,
     topicId,
     version: nextVersion,
     content,
     generatedAt: new Date(now),
+    generatedBy: metadata,
   };
 }
 
@@ -219,7 +226,13 @@ export function getLatestSummary(topicId: string): TopicSummary | null {
 
   if (!row) return null;
 
-  return rowToSummary(row);
+  const summary = rowToSummary(row);
+  const metadata = getSummaryGeneration(summary.id);
+  
+  return {
+    ...summary,
+    generatedBy: metadata || undefined,
+  };
 }
 
 export function getSummaryHistory(topicId: string): TopicSummary[] {
@@ -231,5 +244,12 @@ export function getSummaryHistory(topicId: string): TopicSummary[] {
     ORDER BY version DESC
   `).all(topicId) as SummaryRow[];
 
-  return rows.map(rowToSummary);
+  return rows.map(row => {
+    const summary = rowToSummary(row);
+    const metadata = getSummaryGeneration(summary.id);
+    return {
+      ...summary,
+      generatedBy: metadata || undefined,
+    };
+  });
 }

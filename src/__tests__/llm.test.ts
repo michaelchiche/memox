@@ -34,16 +34,15 @@ describe("OllamaProvider", () => {
 
   describe("classifyNote", () => {
     it("should return ranked topics and suggestions", async () => {
-      const mockResponse = JSON.stringify({
-        response: JSON.stringify({
-          rankedTopics: [{ topicName: "Alpha", confidence: 85 }],
-          suggestedNewTopics: ["Beta", "Gamma"],
-        }),
-      });
-
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(JSON.parse(mockResponse)),
+        json: () => Promise.resolve({
+          response: JSON.stringify({
+            rankedTopics: [{ topicName: "Alpha", confidence: 85 }],
+            suggestedNewTopics: ["Beta", "Gamma"],
+          }),
+          eval_count: 50,
+        }),
       });
 
       const note: Note = {
@@ -65,6 +64,8 @@ describe("OllamaProvider", () => {
       expect(result.rankedTopics).toHaveLength(1);
       expect(result.rankedTopics[0].confidence).toBe(85);
       expect(result.suggestedNewTopics).toContain("Beta");
+      expect(result.metadata.provider).toBe("ollama");
+      expect(result.metadata.model).toBe("test-model");
     });
 
     it("should handle LLM errors gracefully", async () => {
@@ -89,13 +90,12 @@ describe("OllamaProvider", () => {
 
   describe("summarizeTopic", () => {
     it("should generate summary for topic", async () => {
-      const mockResponse = JSON.stringify({
-        response: "This is a summary",
-      });
-
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(JSON.parse(mockResponse)),
+        json: () => Promise.resolve({
+          response: "This is a summary",
+          eval_count: 10,
+        }),
       });
 
       const topic: Topic = {
@@ -119,23 +119,24 @@ describe("OllamaProvider", () => {
 
       const result = await provider.summarizeTopic(topic, notes);
 
-      expect(result).toContain("This is a summary");
+      expect(result.content).toContain("This is a summary");
+      expect(result.metadata.provider).toBe("ollama");
+      expect(result.metadata.model).toBe("test-model");
     });
   });
 
   describe("proposeTopics", () => {
     it("should propose topics from notes", async () => {
-      const mockResponse = JSON.stringify({
-        response: JSON.stringify({
-          proposals: [
-            { name: "Project Alpha", description: "Notes about Alpha", sampleNotes: ["note1"] },
-          ],
-        }),
-      });
-
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(JSON.parse(mockResponse)),
+        json: () => Promise.resolve({
+          response: JSON.stringify({
+            proposals: [
+              { name: "Project Alpha", description: "Notes about Alpha", sampleNotes: ["note1"] },
+            ],
+          }),
+          eval_count: 20,
+        }),
       });
 
       const notes: Note[] = [
@@ -152,8 +153,10 @@ describe("OllamaProvider", () => {
 
       const result = await provider.proposeTopics(notes);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe("Project Alpha");
+      expect(result.proposals).toHaveLength(1);
+      expect(result.proposals[0].name).toBe("Project Alpha");
+      expect(result.metadata.provider).toBe("ollama");
+      expect(result.metadata.model).toBe("test-model");
     });
   });
 });

@@ -1,16 +1,23 @@
-import type { Note, Topic, TopicMatch, TopicProposal } from "../types/index.js";
+import type { Note, Topic, TopicMatch, TopicProposal, GenerationMetadata } from "../types/index.js";
 
 export interface LLMProvider {
   classifyNote(note: Note, existingTopics: Topic[]): Promise<{
     rankedTopics: TopicMatch[];
     suggestedNewTopics: string[];
+    metadata: GenerationMetadata;
   }>;
   
-  summarizeTopic(topic: Topic, notes: Note[]): Promise<string>;
+  summarizeTopic(topic: Topic, notes: Note[]): Promise<{
+    content: string;
+    metadata: GenerationMetadata;
+  }>;
   
-  proposeTopics(notes: Note[]): Promise<TopicProposal[]>;
+  proposeTopics(notes: Note[]): Promise<{
+    proposals: TopicProposal[];
+    metadata: GenerationMetadata;
+  }>;
   
   isAvailable(): Promise<boolean>;
 }
 
-export type { TopicMatch, TopicProposal } from "../types/index.js";
+export type { TopicMatch, TopicProposal, GenerationMetadata } from "../types/index.js";

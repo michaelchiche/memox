@@ -34,7 +34,8 @@ export function initCommands(program: Command): void {
   noteCommand
     .command("show <file>")
     .description("Show note details and topics")
-    .action(handleNoteShow);
+    .option("--show-llm", "Show LLM model used for classification")
+    .action((file: string, options: { showLlm?: boolean }) => handleNoteShow(file, options));
   
   noteCommand
     .command("add <file>")
@@ -58,7 +59,8 @@ export function initCommands(program: Command): void {
   topicCommand
     .command("show <name>")
     .description("Show topic details and notes")
-    .action(handleTopicShow);
+    .option("--show-llm", "Show LLM model used for summary generation")
+    .action((name: string, options: { showLlm?: boolean }) => handleTopicShow(name, options));
   
   topicCommand
     .command("create <name>")

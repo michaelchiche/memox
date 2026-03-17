@@ -158,6 +158,19 @@ function createSchema(database: Database.Database): void {
     
     CREATE INDEX IF NOT EXISTS idx_summaries_topic ON topic_summaries(topic_id);
     
+    -- Generations table (tracks LLM generations)
+    CREATE TABLE IF NOT EXISTS generations (
+      id TEXT PRIMARY KEY,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      tokens_used INTEGER,
+      generated_at TEXT NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_generations_entity ON generations(entity_type, entity_id);
+    
     -- FTS5 virtual table for full-text search
     CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
       title,
@@ -180,4 +193,51 @@ function createSchema(database: Database.Database): void {
       INSERT INTO notes_fts(rowid, title, content) VALUES (new.rowid, new.title, new.content);
     END;
   `);
+}
+
+export function saveGeneration(generation: {
+  id: string;
+  entityType: 'note' | 'topic_summary' | 'topic_proposal';
+  entityId: string;
+  provider: string;
+  model: string;
+  tokensUsed?: number;
+  generatedAt: Date;
+}): void {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO generations (id, entity_type, entity_id, provider, model, tokens_used, generated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    generation.id,
+    generation.entityType,
+    generation.entityId,
+    generation.provider,
+    generation.model,
+    generation.tokensUsed ?? null,
+    generation.generatedAt.toISOString()
+  );
+}
+
+export function getGenerationForEntity(
+  entityType: 'note' | 'topic_summary' | 'topic_proposal',
+  entityId: string
+): { id: string; entityType: string; entityId: string; provider: string; model: string; tokensUsed: number | null; generatedAt: string } | null {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    SELECT id, entity_type, entity_id, provider, model, tokens_used, generated_at
+    FROM generations
+    WHERE entity_type = ? AND entity_id = ?
+  `);
+  const row = stmt.get(entityType, entityId) as { id: string; entity_type: string; entity_id: string; provider: string; model: string; tokens_used: number | null; generated_at: string } | undefined;
+  return row ? {
+    id: row.id,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    provider: row.provider,
+    model: row.model,
+    tokensUsed: row.tokens_used,
+    generatedAt: row.generated_at
+  } : null;
 }
