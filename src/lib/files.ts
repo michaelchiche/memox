@@ -1,19 +1,19 @@
 import fs from "fs";
 import path from "path";
 import { globSync } from "glob";
-import { getDatabase } from "./database.js";
 import { computeHash } from "./hash.js";
 import { createNote, getNoteByPath, updateNote, deleteNote } from "./notes.js";
-import { getOrCreateDefaultTopic, getTopicByName, createTopic } from "./topics.js";
+import { getTopicByName, createTopic } from "./topics.js";
 import { setNoteTopics, getTopicsForNote } from "./associations.js";
 import { parseNoteFrontmatter, serializeNoteFrontmatter, extractTitleFromContent } from "./frontmatter.js";
-import type { Note, NoteFrontmatter, Config } from "../types/index.js";
+import type { Note, NoteFrontmatter } from "../types/index.js";
 
 export interface NoteFile {
   path: string;
   content: string;
   frontmatter: NoteFrontmatter;
   body: string;
+  fileType: 'md' | 'txt';
 }
 
 export interface SyncResult {
@@ -27,6 +27,42 @@ export interface SyncResult {
 
 export function readNoteFile(filePath: string): NoteFile {
   const content = fs.readFileSync(filePath, "utf-8");
+  const ext = path.extname(filePath).toLowerCase();
+  const fileType: 'md' | 'txt' = ext === '.txt' ? 'txt' : 'md';
+  
+  if (content.trim().length === 0) {
+    console.warn(`Warning: Empty file detected: ${filePath}`);
+  }
+  
+  if (fileType === 'txt') {
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+    const firstLine = lines[0] || '';
+    
+    // Extract a clean title: remove markdown headers, separators, and trim
+    let title = firstLine
+      .replace(/^#+\s*/, '')  // Remove markdown headers
+      .replace(/^-+\s*$/, '') // Remove separator lines like ---
+      .trim();
+    
+    // If title is empty after cleaning, use filename
+    if (!title || title.startsWith('---')) {
+      title = path.basename(filePath, '.txt');
+    }
+    
+    // Limit title length
+    if (title.length > 100) {
+      title = title.substring(0, 97) + '...';
+    }
+    
+    return {
+      path: filePath,
+      content,
+      frontmatter: { title },
+      body: content,
+      fileType: 'txt',
+    };
+  }
+  
   const { frontmatter, content: body } = parseNoteFrontmatter(content);
   
   return {
@@ -34,6 +70,7 @@ export function readNoteFile(filePath: string): NoteFile {
     content,
     frontmatter,
     body,
+    fileType: 'md',
   };
 }
 
@@ -76,7 +113,7 @@ export function importNoteFromPath(
   if (note) {
     if (note.hash !== hash) {
       note = updateNote(note.id, {
-        content: noteFile.body,
+        content: noteFile.fileType === 'txt' ? noteFile.content : noteFile.body,
         title,
         hash,
       });
@@ -84,13 +121,17 @@ export function importNoteFromPath(
   } else {
     note = createNote({
       path: relativePath,
-      content: noteFile.body,
+      content: noteFile.fileType === 'txt' ? noteFile.content : noteFile.body,
       title,
       hash,
     });
   }
   
-  if (noteFile.frontmatter.topics && noteFile.frontmatter.topics.length > 0) {
+  if (!note) {
+    throw new Error("Failed to create or update note");
+  }
+  
+  if (noteFile.fileType === 'md' && noteFile.frontmatter.topics && noteFile.frontmatter.topics.length > 0) {
     const topicIds: string[] = [];
     
     for (const topicName of noteFile.frontmatter.topics) {
@@ -186,7 +227,7 @@ export function syncAllNotes(storePath: string): SyncResult[] {
       status = "updated";
     }
     
-    if (noteFile.frontmatter.topics) {
+    if (note && noteFile.frontmatter.topics) {
       const topicIds: string[] = [];
       for (const topicName of noteFile.frontmatter.topics) {
         let topic = getTopicByName(topicName);
@@ -198,7 +239,9 @@ export function syncAllNotes(storePath: string): SyncResult[] {
       setNoteTopics(note.id, topicIds);
     }
     
-    results.push({ note, status });
+    if (note) {
+      results.push({ note, status });
+    }
   }
   
   return results;

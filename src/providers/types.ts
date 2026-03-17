@@ -12,8 +12,18 @@ export interface LLMProvider {
     metadata: GenerationMetadata;
   }>;
   
+  summarizeNote(note: Note): Promise<{
+    content: string;
+    metadata: GenerationMetadata;
+  }>;
+  
   proposeTopics(notes: Note[]): Promise<{
     proposals: TopicProposal[];
+    metadata: GenerationMetadata;
+  }>;
+  
+  generateText(prompt: string): Promise<{
+    content: string;
     metadata: GenerationMetadata;
   }>;
   

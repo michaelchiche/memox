@@ -33,6 +33,15 @@ export interface TopicSummary {
   generatedBy?: { provider: string; model: string };
 }
 
+export interface NoteSummary {
+  id: string;
+  noteId: string;
+  version: number;
+  content: string;
+  generatedAt: Date;
+  generatedBy?: { provider: string; model: string };
+}
+
 export interface TopicMatch {
   topic: Topic;
   confidence: number;
@@ -71,7 +80,7 @@ export interface GenerationMetadata {
 
 export interface Generation {
   id: string;
-  entityType: 'note' | 'topic_summary' | 'topic_proposal';
+  entityType: 'note' | 'topic_summary' | 'topic_proposal' | 'note_summary';
   entityId: string;
   provider: string;
   model: string;

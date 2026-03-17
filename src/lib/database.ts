@@ -158,6 +158,18 @@ function createSchema(database: Database.Database): void {
     
     CREATE INDEX IF NOT EXISTS idx_summaries_topic ON topic_summaries(topic_id);
     
+    -- Note summaries table (versioned)
+    CREATE TABLE IF NOT EXISTS note_summaries (
+      id TEXT PRIMARY KEY,
+      note_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      generated_at TEXT NOT NULL,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_note_summaries_note ON note_summaries(note_id);
+    
     -- Generations table (tracks LLM generations)
     CREATE TABLE IF NOT EXISTS generations (
       id TEXT PRIMARY KEY,
@@ -197,7 +209,7 @@ function createSchema(database: Database.Database): void {
 
 export function saveGeneration(generation: {
   id: string;
-  entityType: 'note' | 'topic_summary' | 'topic_proposal';
+  entityType: 'note' | 'topic_summary' | 'topic_proposal' | 'note_summary';
   entityId: string;
   provider: string;
   model: string;
@@ -221,7 +233,7 @@ export function saveGeneration(generation: {
 }
 
 export function getGenerationForEntity(
-  entityType: 'note' | 'topic_summary' | 'topic_proposal',
+  entityType: 'note' | 'topic_summary' | 'topic_proposal' | 'note_summary',
   entityId: string
 ): { id: string; entityType: string; entityId: string; provider: string; model: string; tokensUsed: number | null; generatedAt: string } | null {
   const database = getDatabase();

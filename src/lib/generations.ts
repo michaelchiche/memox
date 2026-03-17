@@ -3,7 +3,7 @@ import { saveGeneration, getGenerationForEntity } from "./database.js";
 import type { GenerationMetadata } from "../types/index.js";
 
 export function createGeneration(
-  entityType: 'note' | 'topic_summary' | 'topic_proposal',
+  entityType: 'note' | 'topic_summary' | 'topic_proposal' | 'note_summary',
   entityId: string,
   metadata: GenerationMetadata
 ): void {
@@ -30,6 +30,16 @@ export function getNoteGeneration(noteId: string): GenerationMetadata | null {
 
 export function getSummaryGeneration(summaryId: string): GenerationMetadata | null {
   const row = getGenerationForEntity('topic_summary', summaryId);
+  if (!row) return null;
+  return {
+    provider: row.provider,
+    model: row.model,
+    tokensUsed: row.tokensUsed ?? undefined,
+  };
+}
+
+export function getNoteSummaryGeneration(summaryId: string): GenerationMetadata | null {
+  const row = getGenerationForEntity('note_summary', summaryId);
   if (!row) return null;
   return {
     provider: row.provider,

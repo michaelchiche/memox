@@ -1,5 +1,6 @@
 import type { Note, Topic, TopicMatch, TopicProposal, GenerationMetadata } from "../types/index.js";
 import type { LLMProvider } from "./types.js";
+import { buildTranscriptionSummaryPrompt } from "../prompts/summarize.js";
 
 interface OllamaGenerateResponse {
   response: string;
@@ -35,7 +36,7 @@ export class OllamaProvider implements LLMProvider {
 
 Note title: ${note.title}
 Note content:
-${note.content.substring(0, 2000)}
+${note.content}
 
 Existing topics: ${topicList || "None"}
 
@@ -91,6 +92,20 @@ Summary:`;
     }
   }
 
+  async summarizeNote(note: Note): Promise<{
+    content: string;
+    metadata: GenerationMetadata;
+  }> {
+    const prompt = buildTranscriptionSummaryPrompt(note);
+
+    try {
+      const { response, metadata } = await this.generate(prompt);
+      return { content: response.trim(), metadata };
+    } catch (error) {
+      throw new Error(`Failed to generate summary: ${error}`);
+    }
+  }
+
   async proposeTopics(notes: Note[]): Promise<{
     proposals: TopicProposal[];
     metadata: GenerationMetadata;
@@ -133,6 +148,14 @@ Respond in JSON format:
     } catch {
       return false;
     }
+  }
+
+  async generateText(prompt: string): Promise<{
+    content: string;
+    metadata: GenerationMetadata;
+  }> {
+    const { response, metadata } = await this.generate(prompt);
+    return { content: response.trim(), metadata };
   }
 
   private async generate(prompt: string): Promise<GenerateResult> {
