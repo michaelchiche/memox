@@ -51,21 +51,24 @@ memo topic summarize "My Project"
 ### Init Command
 
 ```bash
-# Initialize memo with defaults
+# Initialize memo in current directory (store path = ., db = .memo.db)
 memo init
 
 # Initialize with custom settings (interactive prompts)
 memo init
 # Then answer "y" to "Customize defaults?"
 
-# Initialize global configuration
+# Initialize global configuration (store path = ~/memo)
 memo init --global
 ```
 
 The `init` command:
-- Creates a `memo.yaml` config file (or `.memorc.yaml` for `--global`)
+- **Local (`memo init`)**: Creates `./memo.yaml` with:
+  - `storePath: "."` (current directory - notes stored here)
+  - `dbPath: ".memo.db"` (hidden database file in current directory)
+- **Global (`memo init --global`)**: Creates `~/.memorc.yaml` with default paths in home directory
 - Shows current defaults and offers to customize them
-- Creates the store directory and initializes the database
+- Creates directories and initializes the database
 - Prompts before overwriting existing config files
 
 ### Note Commands

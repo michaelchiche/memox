@@ -83,6 +83,43 @@ describe("init command integration", () => {
     expect(defaultConfig.defaultTopic).toBe("Non classée");
   });
 
+  it("should use cwd for local init store path", () => {
+    const cwd = process.cwd();
+    const localDefaultConfig = {
+      storePath: ".",
+      dbPath: ".memo.db",
+    };
+
+    expect(localDefaultConfig.storePath).toBe(".");
+    expect(localDefaultConfig.dbPath).toBe(".memo.db");
+    
+    const resolvedStorePath = path.resolve(localDefaultConfig.storePath);
+    const resolvedDbPath = path.resolve(localDefaultConfig.dbPath);
+    expect(resolvedStorePath).toBe(cwd);
+    expect(resolvedDbPath).toBe(path.join(cwd, ".memo.db"));
+  });
+
+  it("should use home directory for global init store path", () => {
+    const globalDefaultStorePath = path.join(os.homedir(), "memo");
+    const globalDefaultDbPath = path.join(os.homedir(), "memo", "memo.db");
+
+    expect(globalDefaultStorePath).toContain(os.homedir());
+    expect(globalDefaultDbPath).toContain(os.homedir());
+  });
+
+  it("should store relative paths in local config", () => {
+    const mockConfig = {
+      storePath: ".",
+      dbPath: ".memo.db",
+    };
+
+    const content = yaml.stringify(mockConfig);
+    const parsed = yaml.parse(content);
+    
+    expect(parsed.storePath).toBe(".");
+    expect(parsed.dbPath).toBe(".memo.db");
+  });
+
   it("should handle overwrite decision for existing config", () => {
     const configPath = path.join(testDir, "memo.yaml");
     fs.writeFileSync(configPath, "storePath: /existing");

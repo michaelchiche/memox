@@ -5,7 +5,7 @@ import chalk from "chalk";
 import * as p from "@clack/prompts";
 import { intro, outro } from "@clack/prompts";
 import { getDefaultConfig, saveConfigToFile } from "../lib/config.js";
-import { ensureDirectories, initDatabase } from "../lib/database.js";
+import { initDatabase } from "../lib/database.js";
 import type { Config } from "../types/index.js";
 
 const CONFIG_FILE_LOCAL = "memo.yaml";
@@ -18,11 +18,21 @@ interface InitOptions {
 export async function handleInit(options: InitOptions): Promise<void> {
   intro(chalk.blue("Initializing memo"));
 
-  const defaultConfig = getDefaultConfig();
+  const globalDefaultConfig = getDefaultConfig();
+  const cwd = process.cwd();
+  
+  const defaultConfig: Config = options.global
+    ? globalDefaultConfig
+    : {
+        storePath: ".",
+        dbPath: ".memo.db",
+        llm: globalDefaultConfig.llm,
+        defaultTopic: globalDefaultConfig.defaultTopic,
+      };
   
   const configPath = options.global
     ? path.join(os.homedir(), CONFIG_FILE_GLOBAL)
-    : path.join(process.cwd(), CONFIG_FILE_LOCAL);
+    : path.join(cwd, CONFIG_FILE_LOCAL);
 
   if (fs.existsSync(configPath)) {
     const overwrite = await p.confirm({
@@ -37,7 +47,14 @@ export async function handleInit(options: InitOptions): Promise<void> {
   }
 
   console.log(chalk.bold("\nCurrent defaults:"));
-  console.log(`  Store path: ${defaultConfig.storePath}`);
+  const displayStorePath = defaultConfig.storePath === "." 
+    ? `${cwd} (current directory)` 
+    : defaultConfig.storePath;
+  const displayDbPath = !options.global && defaultConfig.dbPath === ".memo.db"
+    ? path.join(cwd, ".memo.db")
+    : defaultConfig.dbPath;
+  console.log(`  Store path: ${displayStorePath}`);
+  console.log(`  Database: ${displayDbPath}`);
   console.log(`  LLM: ${defaultConfig.llm.provider}/${defaultConfig.llm.model}`);
   console.log(`  Default topic: ${defaultConfig.defaultTopic}`);
 
@@ -129,13 +146,23 @@ export async function handleInit(options: InitOptions): Promise<void> {
   }
 
   try {
-    ensureDirectories(config);
-    initDatabase(config.dbPath);
+    const resolvedStorePath = path.resolve(config.storePath);
+    const resolvedDbPath = path.resolve(config.dbPath);
+    
+    if (!fs.existsSync(resolvedStorePath)) {
+      fs.mkdirSync(resolvedStorePath, { recursive: true });
+    }
+    const dbDir = path.dirname(resolvedDbPath);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    
+    initDatabase(resolvedDbPath);
     saveConfigToFile(config, configPath);
 
     console.log(chalk.green("\n✓ Created config at:"), configPath);
-    console.log(chalk.green("✓ Store path:"), config.storePath);
-    console.log(chalk.green("✓ Database:"), config.dbPath);
+    console.log(chalk.green("✓ Store path:"), path.resolve(config.storePath));
+    console.log(chalk.green("✓ Database:"), path.resolve(config.dbPath));
     
     outro(chalk.green("Init complete!\n") + chalk.gray('Run `memo import ./notes/` or `memo sync` to start.'));
   } catch (error) {
