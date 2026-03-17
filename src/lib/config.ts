@@ -8,6 +8,7 @@ const CONFIG_FILE_HIDDEN = ".memorc.yaml";
 const CONFIG_FILE_VISIBLE = "memo.yaml";
 const DEFAULT_STORE_PATH = path.join(os.homedir(), "memo");
 const DEFAULT_DB_NAME = "memo.db";
+const SCHEMA_URL = "https://raw.githubusercontent.com/anomalyco/memo/main/schemas/memo-config.schema.json";
 
 /**
  * Get the default configuration.
@@ -153,7 +154,8 @@ export function saveConfigToFile(config: Config, filePath: string): void {
     fs.mkdirSync(dir, { recursive: true });
   }
   
-  const content = yaml.stringify(configObj);
+  const schemaComment = `# yaml-language-server: $schema=${SCHEMA_URL}\n`;
+  const content = schemaComment + yaml.stringify(configObj);
   fs.writeFileSync(filePath, content, "utf-8");
 }
 

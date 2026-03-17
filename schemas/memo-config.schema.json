@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/anomalyco/memo/main/schemas/memo-config.schema.json",
+  "title": "Memo Configuration",
+  "description": "Configuration file for Memo CLI tool",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for configuration file",
+      "format": "uri"
+    },
+    "storePath": {
+      "type": "string",
+      "description": "Directory where notes are stored",
+      "default": "~/memo"
+    },
+    "dbPath": {
+      "type": "string",
+      "description": "Path to the SQLite database file"
+    },
+    "llm": {
+      "type": "object",
+      "description": "LLM provider configuration",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "LLM provider to use",
+          "enum": ["ollama", "openai"],
+          "default": "ollama"
+        },
+        "model": {
+          "type": "string",
+          "description": "LLM model name (e.g., llama3.2, mistral)",
+          "examples": ["llama3.2", "mistral", "gpt-4"]
+        },
+        "baseUrl": {
+          "type": "string",
+          "description": "Base URL for the LLM provider API",
+          "format": "uri",
+          "examples": ["http://localhost:11434"]
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key for the LLM provider (required for openai)"
+        }
+      },
+      "required": ["provider", "model"],
+      "additionalProperties": false
+    },
+    "defaultTopic": {
+      "type": "string",
+      "description": "Default topic for unclassified notes",
+      "default": "Non classée"
+    }
+  },
+  "additionalProperties": false
+}

@@ -18,5 +18,8 @@
     "titleBar.inactiveBackground": "#07137d99",
     "titleBar.inactiveForeground": "#e7e7e799"
   },
-  "peacock.color": "#07137d"
+  "peacock.color": "#07137d",
+  "yaml.schemas": {
+    "./schemas/memo-config.schema.json": ["memo.yaml", ".memorc.yaml"]
+  }
 }

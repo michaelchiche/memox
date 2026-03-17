@@ -171,6 +171,7 @@ Memo searches for configuration files in this order (highest priority first):
 
 ```yaml
 # ~/.memorc.yaml (global config)
+# yaml-language-server: $schema=https://raw.githubusercontent.com/anomalyco/memo/main/schemas/memo-config.schema.json
 storePath: ~/memo/store
 dbPath: ~/memo/memo.db
 llm:
@@ -182,9 +183,34 @@ defaultTopic: Non classée
 
 ```yaml
 # ./memo.yaml (project-local config)
+# yaml-language-server: $schema=./node_modules/memo/schemas/memo-config.schema.json
 llm:
   model: mistral  # Override model for this project
 ```
+
+### JSON Schema for IDE Autocomplete
+
+Memo provides a JSON Schema file for IDE autocomplete and validation. The `memo init` command automatically adds a `$schema` reference to your config file for autocomplete support.
+
+To manually enable it in an existing config file, add:
+
+```yaml
+# memo.yaml or .memorc.yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/anomalyco/memo/main/schemas/memo-config.schema.json
+```
+
+For local development or when the npm package is installed:
+
+```yaml
+# yaml-language-server: $schema=./node_modules/memo/schemas/memo-config.schema.json
+```
+
+**VS Code users**: Install the [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) for schema support. The recommended workspace settings are included in this project.
+
+This enables:
+- Autocomplete for all config properties
+- Validation of required fields and enum values
+- Inline documentation and descriptions
 
 ### Project-local Configuration
 
