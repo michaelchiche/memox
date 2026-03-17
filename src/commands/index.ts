@@ -2,10 +2,17 @@ import { Command } from "commander";
 import { handleImport } from "./import.js";
 import { handleSync } from "./sync.js";
 import { handleConfig } from "./config.js";
+import { handleInit } from "./init.js";
 import { handleNoteShow, handleNoteAdd, handleNoteTopics } from "./note.js";
 import { handleTopicList, handleTopicShow, handleTopicCreate, handleTopicRename, handleTopicDelete, handleTopicSummarize, handleTopicHistory, handleTopicPropose } from "./topic.js";
 
 export function initCommands(program: Command): void {
+  program
+    .command("init")
+    .description("Initialize memo configuration")
+    .option("-g, --global", "Create global config (~/.memorc.yaml) instead of local", false)
+    .action(handleInit);
+
   program
     .command("import <path>")
     .description("Import notes from a file or directory")

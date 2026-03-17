@@ -27,8 +27,8 @@ npm install -g memo
 ## Quick Start
 
 ```bash
-# Initialize the database
-memo sync
+# Initialize memo configuration
+memo init
 
 # Import notes from a directory
 memo import ./my-notes/
@@ -47,6 +47,26 @@ memo topic summarize "My Project"
 ```
 
 ## Commands
+
+### Init Command
+
+```bash
+# Initialize memo with defaults
+memo init
+
+# Initialize with custom settings (interactive prompts)
+memo init
+# Then answer "y" to "Customize defaults?"
+
+# Initialize global configuration
+memo init --global
+```
+
+The `init` command:
+- Creates a `memo.yaml` config file (or `.memorc.yaml` for `--global`)
+- Shows current defaults and offers to customize them
+- Creates the store directory and initializes the database
+- Prompts before overwriting existing config files
 
 ### Note Commands
 
