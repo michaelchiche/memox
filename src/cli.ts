@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Command } from "commander";
 import { initDatabase, closeDatabase, ensureDirectories } from "./lib/database.js";
 import { loadConfig, ensureStorePath, getActiveConfigPath } from "./lib/config.js";
