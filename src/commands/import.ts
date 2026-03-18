@@ -6,7 +6,6 @@ import { loadConfig, ensureStorePath } from "../lib/config.js";
 import { importNoteFromPath } from "../lib/files.js";
 import { getAllTopics, getOrCreateDefaultTopic, createTopic, getTopicByName } from "../lib/topics.js";
 import { setNoteTopics } from "../lib/associations.js";
-import { getNoteByPath } from "../lib/notes.js";
 import { OllamaProvider } from "../providers/ollama.js";
 import type { LLMProvider } from "../providers/types.js";
 import { createGeneration } from "../lib/generations.js";
@@ -57,8 +56,6 @@ async function importNotes(
   const files = globSync(["**/*.md", "**/*.txt"], { cwd: importPath, absolute: true });
   
   for (const file of files) {
-    const relativePath = path.relative(storePath, file);
-    const existingNote = getNoteByPath(relativePath);
     const isTxtFile = file.endsWith('.txt');
     
     if (options.default) {
@@ -80,22 +77,6 @@ async function importNotes(
     
     if (options.auto) {
       importNoteFromPath(file, storePath);
-      imported++;
-      continue;
-    }
-    
-    if (!existingTopics.length && !existingNote) {
-      const note = importNoteFromPath(file, storePath);
-      
-      if (isTxtFile && (await provider.isAvailable())) {
-        try {
-          await summarizeNote(note, provider);
-          console.log(chalk.gray(`  Generated summary for: ${note.title}`));
-        } catch (error) {
-          console.error(chalk.yellow(`Warning: Could not generate summary: ${error}`));
-        }
-      }
-      
       imported++;
       continue;
     }
