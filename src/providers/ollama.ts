@@ -1,6 +1,7 @@
 import type { Note, Topic, TopicMatch, TopicProposal, GenerationMetadata } from "../types/index.js";
 import type { LLMProvider } from "./types.js";
 import { buildTranscriptionSummaryPrompt } from "../prompts/summarize.js";
+import { buildKeywordExtractionPrompt, buildTopicClassificationPrompt } from "../prompts/classify.js";
 
 interface OllamaGenerateResponse {
   response: string;
@@ -31,29 +32,23 @@ export class OllamaProvider implements LLMProvider {
     suggestedNewTopics: string[];
     metadata: GenerationMetadata;
   }> {
-    const topicList = existingTopics.map(t => t.name).join(", ");
-    const prompt = `Analyze this note and classify it into topics.
-
-Note title: ${note.title}
-Note content:
-${note.content}
-
-Existing topics: ${topicList || "None"}
-
-Instructions:
-1. If there are existing topics, rate how well this note fits each one (0-100 confidence)
-2. Suggest up to 5 new topic names if no existing topics fit well
-
-Respond in JSON format:
-{
-  "rankedTopics": [{"topicName": "...", "confidence": 0-100}],
-  "suggestedNewTopics": ["topic1", "topic2"]
-}`;
-
     try {
-      const { response, metadata } = await this.generate(prompt);
-      const parsed = this.parseClassificationResponse(response, existingTopics);
-      return { ...parsed, metadata };
+      // Step 1: Extract keywords
+      const keywordsPrompt = buildKeywordExtractionPrompt(note.content);
+      const { response: keywordsRaw } = await this.generate(keywordsPrompt);
+      const keywords = this.parseKeywordsResponse(keywordsRaw);
+      
+      // Step 2: Classify based on keywords
+      const existingTopicNames = existingTopics.map(t => t.name);
+      const classifyPrompt = buildTopicClassificationPrompt(keywords, existingTopicNames);
+      const { response: classifyRaw, metadata } = await this.generate(classifyPrompt);
+      
+      const result = this.parseClassificationResponse(classifyRaw, existingTopics);
+      
+      // Filter by confidence threshold >= 50%
+      result.rankedTopics = result.rankedTopics.filter(t => t.confidence >= 50);
+      
+      return { ...result, metadata };
     } catch (error) {
       return { 
         rankedTopics: [], 
@@ -198,21 +193,39 @@ Respond in JSON format:
       
       const rankedTopics: TopicMatch[] = (parsed.rankedTopics || [])
         .map((item: { topicName: string; confidence: number }) => {
-          const topic = existingTopics.find(t => t.name === item.topicName);
+          const topic = existingTopics.find((t: Topic) => t.name === item.topicName);
           if (topic) {
             return { topic, confidence: item.confidence };
           }
           return null;
         })
-        .filter((t): t is TopicMatch => t !== null);
+        .filter((t: TopicMatch | null): t is TopicMatch => t !== null);
 
       const suggestedNewTopics: string[] = (parsed.suggestedNewTopics || [])
-        .filter((t: unknown): t is string => typeof t === "string")
+        .filter((item: unknown): item is string => typeof item === "string")
         .slice(0, 5);
 
       return { rankedTopics, suggestedNewTopics };
     } catch {
       return { rankedTopics: [], suggestedNewTopics: [] };
+    }
+  }
+
+  private parseKeywordsResponse(response: string): string[] {
+    try {
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        return [];
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item: unknown): item is string => typeof item === "string")
+          .slice(0, 20);
+      }
+      return [];
+    } catch {
+      return [];
     }
   }
 
