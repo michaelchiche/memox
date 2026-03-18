@@ -1,7 +1,16 @@
-import type { Note, Topic, TopicMatch, TopicProposal, GenerationMetadata } from "../types/index.js";
+import type {
+  Note,
+  Topic,
+  TopicMatch,
+  TopicProposal,
+  GenerationMetadata,
+} from "../types/index.js";
 import type { LLMProvider } from "./types.js";
 import { buildTranscriptionSummaryPrompt } from "../prompts/summarize.js";
-import { buildKeywordExtractionPrompt, buildTopicClassificationPrompt } from "../prompts/classify.js";
+import {
+  buildKeywordExtractionPrompt,
+  buildTopicClassificationPrompt,
+} from "../prompts/classify.js";
 
 interface OllamaGenerateResponse {
   response: string;
@@ -27,43 +36,48 @@ export class OllamaProvider implements LLMProvider {
     this.model = config?.model || "llama3.2";
   }
 
-  async classifyNote(note: Note, existingTopics: Topic[]): Promise<{
+  async classifyNote(
+    note: Note,
+    existingTopics: Topic[],
+  ): Promise<{
     rankedTopics: TopicMatch[];
     suggestedNewTopics: string[];
     metadata: GenerationMetadata;
   }> {
-    try {
-      // Step 1: Extract keywords
-      const keywordsPrompt = buildKeywordExtractionPrompt(note.content);
-      const { response: keywordsRaw } = await this.generate(keywordsPrompt);
-      const keywords = this.parseKeywordsResponse(keywordsRaw);
-      
-      // Step 2: Classify based on keywords
-      const existingTopicNames = existingTopics.map(t => t.name);
-      const classifyPrompt = buildTopicClassificationPrompt(keywords, existingTopicNames);
-      const { response: classifyRaw, metadata } = await this.generate(classifyPrompt);
-      
-      const result = this.parseClassificationResponse(classifyRaw, existingTopics);
-      
-      // Filter by confidence threshold >= 50%
-      result.rankedTopics = result.rankedTopics.filter(t => t.confidence >= 50);
-      
-      return { ...result, metadata };
-    } catch (error) {
-      return { 
-        rankedTopics: [], 
-        suggestedNewTopics: [], 
-        metadata: { provider: 'ollama', model: this.model } 
-      };
-    }
+    // Step 1: Extract keywords
+    const keywordsPrompt = buildKeywordExtractionPrompt(note.content);
+    const { response: keywordsRaw } = await this.generate(keywordsPrompt);
+    const keywords = this.parseKeywordsResponse(keywordsRaw);
+
+    // Step 2: Classify based on keywords
+    const existingTopicNames = existingTopics.map((t) => t.name);
+    const classifyPrompt = buildTopicClassificationPrompt(
+      keywords,
+      existingTopicNames,
+    );
+    const { response: classifyRaw, metadata } =
+      await this.generate(classifyPrompt);
+
+    const result = this.parseClassificationResponse(
+      classifyRaw,
+      existingTopics,
+    );
+
+    // Filter by confidence threshold >= 50%
+    result.rankedTopics = result.rankedTopics.filter((t) => t.confidence >= 50);
+
+    return { ...result, metadata };
   }
 
-  async summarizeTopic(topic: Topic, notes: Note[]): Promise<{
+  async summarizeTopic(
+    topic: Topic,
+    notes: Note[],
+  ): Promise<{
     content: string;
     metadata: GenerationMetadata;
   }> {
     const notesContent = notes
-      .map(n => `## ${n.title}\n${n.content.substring(0, 1000)}`)
+      .map((n) => `## ${n.title}\n${n.content.substring(0, 1000)}`)
       .join("\n\n")
       .substring(0, 8000);
 
@@ -107,7 +121,7 @@ Summary:`;
   }> {
     const notesContent = notes
       .slice(0, 20)
-      .map(n => `## ${n.title}\n${n.content.substring(0, 500)}`)
+      .map((n) => `## ${n.title}\n${n.content.substring(0, 500)}`)
       .join("\n\n")
       .substring(0, 6000);
 
@@ -129,9 +143,9 @@ Respond in JSON format:
       const parsed = this.parseProposalsResponse(response);
       return { proposals: parsed, metadata };
     } catch (error) {
-      return { 
-        proposals: [], 
-        metadata: { provider: 'ollama', model: this.model } 
+      return {
+        proposals: [],
+        metadata: { provider: "ollama", model: this.model },
       };
     }
   }
@@ -172,7 +186,7 @@ Respond in JSON format:
     return {
       response: data.response,
       metadata: {
-        provider: 'ollama',
+        provider: "ollama",
         model: this.model,
         tokensUsed: data.eval_count,
       },
@@ -181,7 +195,7 @@ Respond in JSON format:
 
   private parseClassificationResponse(
     response: string,
-    existingTopics: Topic[]
+    existingTopics: Topic[],
   ): { rankedTopics: TopicMatch[]; suggestedNewTopics: string[] } {
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -190,10 +204,12 @@ Respond in JSON format:
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
-      
+
       const rankedTopics: TopicMatch[] = (parsed.rankedTopics || [])
         .map((item: { topicName: string; confidence: number }) => {
-          const topic = existingTopics.find((t: Topic) => t.name === item.topicName);
+          const topic = existingTopics.find(
+            (t: Topic) => t.name === item.topicName,
+          );
           if (topic) {
             return { topic, confidence: item.confidence };
           }
@@ -237,12 +253,14 @@ Respond in JSON format:
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
-      
-      return (parsed.proposals || []).map((p: { name: string; description: string; sampleNotes?: string[] }) => ({
-        name: p.name,
-        description: p.description,
-        sampleNotes: p.sampleNotes || [],
-      }));
+
+      return (parsed.proposals || []).map(
+        (p: { name: string; description: string; sampleNotes?: string[] }) => ({
+          name: p.name,
+          description: p.description,
+          sampleNotes: p.sampleNotes || [],
+        }),
+      );
     } catch {
       return [];
     }

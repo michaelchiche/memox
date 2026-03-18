@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { Note, Topic } from "../types/index.js";
+import type { Note } from "../types/index.js";
 import { getDatabase } from "./database.js";
 
 interface NoteRow {
@@ -25,7 +25,7 @@ function rowToNote(row: NoteRow): Note {
 }
 
 export function createNote(
-  noteData: Omit<Note, "id" | "createdAt" | "updatedAt">
+  noteData: Omit<Note, "id" | "createdAt" | "updatedAt">,
 ): Note {
   const db = getDatabase();
   const id = randomUUID();
@@ -36,7 +36,15 @@ export function createNote(
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  stmt.run(id, noteData.path, noteData.title, noteData.content, noteData.hash, now, now);
+  stmt.run(
+    id,
+    noteData.path,
+    noteData.title,
+    noteData.content,
+    noteData.hash,
+    now,
+    now,
+  );
 
   return {
     id,
@@ -51,11 +59,15 @@ export function createNote(
 
 export function getNoteById(id: string): Note | null {
   const db = getDatabase();
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT id, path, title, content, hash, created_at, updated_at
     FROM notes
     WHERE id = ?
-  `).get(id) as NoteRow | undefined;
+  `,
+    )
+    .get(id) as NoteRow | undefined;
 
   if (!row) return null;
 
@@ -64,11 +76,15 @@ export function getNoteById(id: string): Note | null {
 
 export function getNoteByPath(path: string): Note | null {
   const db = getDatabase();
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT id, path, title, content, hash, created_at, updated_at
     FROM notes
     WHERE path = ?
-  `).get(path) as NoteRow | undefined;
+  `,
+    )
+    .get(path) as NoteRow | undefined;
 
   if (!row) return null;
 
@@ -77,18 +93,22 @@ export function getNoteByPath(path: string): Note | null {
 
 export function getAllNotes(): Note[] {
   const db = getDatabase();
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT id, path, title, content, hash, created_at, updated_at
     FROM notes
     ORDER BY updated_at DESC
-  `).all() as NoteRow[];
+  `,
+    )
+    .all() as NoteRow[];
 
   return rows.map(rowToNote);
 }
 
 export function updateNote(
   id: string,
-  updates: Partial<Pick<Note, "title" | "content" | "hash">>
+  updates: Partial<Pick<Note, "title" | "content" | "hash">>,
 ): Note | null {
   const db = getDatabase();
   const now = new Date().toISOString();
@@ -130,26 +150,34 @@ export function deleteNote(id: string): boolean {
 
 export function getNotesByTopicId(topicId: string): Note[] {
   const db = getDatabase();
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT n.id, n.path, n.title, n.content, n.hash, n.created_at, n.updated_at
     FROM notes n
     INNER JOIN note_topics nt ON n.id = nt.note_id
     WHERE nt.topic_id = ?
     ORDER BY n.updated_at DESC
-  `).all(topicId) as NoteRow[];
+  `,
+    )
+    .all(topicId) as NoteRow[];
 
   return rows.map(rowToNote);
 }
 
 export function getNotesWithoutTopics(): Note[] {
   const db = getDatabase();
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT n.id, n.path, n.title, n.content, n.hash, n.created_at, n.updated_at
     FROM notes n
     LEFT JOIN note_topics nt ON n.id = nt.note_id
     WHERE nt.note_id IS NULL
     ORDER BY n.updated_at DESC
-  `).all() as NoteRow[];
+  `,
+    )
+    .all() as NoteRow[];
 
   return rows.map(rowToNote);
 }

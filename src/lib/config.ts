@@ -8,7 +8,8 @@ const CONFIG_FILE_HIDDEN = ".memorc.yaml";
 const CONFIG_FILE_VISIBLE = "memo.yaml";
 const DEFAULT_STORE_PATH = path.join(os.homedir(), "memo");
 const DEFAULT_DB_NAME = "memo.db";
-const SCHEMA_URL = "https://raw.githubusercontent.com/anomalyco/memo/main/schemas/memo-config.schema.json";
+const SCHEMA_URL =
+  "https://raw.githubusercontent.com/michaelchiche/memox/main/schemas/memo-config.schema.json";
 
 /**
  * Get the default configuration.
@@ -35,43 +36,43 @@ export function findConfigFile(): string | null {
   if (process.env.MEMO_CONFIG_PATH) {
     return process.env.MEMO_CONFIG_PATH;
   }
-  
+
   // 2. Walk up from current directory to home
   let dir = process.cwd();
   const home = os.homedir();
-  
+
   while (true) {
     // Priority: .memorc.yaml (hidden) then memo.yaml (visible)
     const hidden = path.join(dir, CONFIG_FILE_HIDDEN);
     if (fs.existsSync(hidden)) {
       return hidden;
     }
-    
+
     const visible = path.join(dir, CONFIG_FILE_VISIBLE);
     if (fs.existsSync(visible)) {
       return visible;
     }
-    
+
     // Stop at home directory
     if (dir === home) {
       break;
     }
-    
+
     // Stop at filesystem root
     const parent = path.dirname(dir);
     if (parent === dir) {
       break;
     }
-    
+
     dir = parent;
   }
-  
+
   // 3. Fallback to home directory
   const defaultPath = path.join(home, CONFIG_FILE_HIDDEN);
   if (fs.existsSync(defaultPath)) {
     return defaultPath;
   }
-  
+
   return null;
 }
 
@@ -101,7 +102,7 @@ export function getGlobalConfigPath(): string {
 export function loadConfig(): Config {
   const defaultConfig = getDefaultConfig();
   const configPath = findConfigFile();
-  
+
   // Load file config if exists
   let fileConfig: Partial<Config> = {};
   if (configPath && fs.existsSync(configPath)) {
@@ -112,20 +113,21 @@ export function loadConfig(): Config {
       console.error(`Failed to load config from ${configPath}:`, error);
     }
   }
-  
+
   // Merge with priority: env > file > defaults
   return {
-    storePath: 
-      process.env.MEMO_STORE_PATH || 
-      fileConfig.storePath || 
+    storePath:
+      process.env.MEMO_STORE_PATH ||
+      fileConfig.storePath ||
       defaultConfig.storePath,
-    dbPath: 
-      process.env.MEMO_DB_PATH || 
-      fileConfig.dbPath || 
-      defaultConfig.dbPath,
+    dbPath:
+      process.env.MEMO_DB_PATH || fileConfig.dbPath || defaultConfig.dbPath,
     llm: {
       provider: fileConfig.llm?.provider || defaultConfig.llm.provider,
-      model: process.env.MEMO_LLM_MODEL || fileConfig.llm?.model || defaultConfig.llm.model,
+      model:
+        process.env.MEMO_LLM_MODEL ||
+        fileConfig.llm?.model ||
+        defaultConfig.llm.model,
       baseUrl: fileConfig.llm?.baseUrl || defaultConfig.llm.baseUrl,
       apiKey: fileConfig.llm?.apiKey,
     },
@@ -148,12 +150,12 @@ export function saveConfigToFile(config: Config, filePath: string): void {
     },
     defaultTopic: config.defaultTopic,
   };
-  
+
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  
+
   const schemaComment = `# yaml-language-server: $schema=${SCHEMA_URL}\n`;
   const content = schemaComment + yaml.stringify(configObj);
   fs.writeFileSync(filePath, content, "utf-8");
@@ -173,24 +175,26 @@ export function saveConfig(config: Config): void {
  * @param value - Value to set
  * @param global - If true, save to ~/.memorc.yaml; otherwise save to active config
  */
-export function setConfigValue(key: string, value: string | number | boolean, global: boolean = false): { config: Config; path: string } {
+export function setConfigValue(
+  key: string,
+  value: string | number | boolean,
+  global: boolean = false,
+): { config: Config; path: string } {
   const config = loadConfig();
-  
+
   if (key.startsWith("llm.")) {
     const llmKey = key.split(".")[1] as keyof typeof config.llm;
     if (llmKey in config.llm) {
       (config.llm as Record<string, unknown>)[llmKey] = value;
     }
   } else if (key in config) {
-    (config as Record<string, unknown>)[key] = value;
+    (config as unknown as Record<string, unknown>)[key] = value;
   }
-  
-  const targetPath = global 
-    ? getGlobalConfigPath() 
-    : getActiveConfigPath();
-  
+
+  const targetPath = global ? getGlobalConfigPath() : getActiveConfigPath();
+
   saveConfigToFile(config, targetPath);
-  
+
   return { config, path: targetPath };
 }
 

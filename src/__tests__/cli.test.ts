@@ -40,8 +40,12 @@ describe("CLI Integration Tests", () => {
 
   describe("topic", () => {
     it("should list empty topics", () => {
-      const result = execSync(`node ${CLI_PATH} topic list`, { encoding: "utf-8" });
-      expect(result).toContain("No topics found") || expect(result).toContain("Name");
+      const result = execSync(`node ${CLI_PATH} topic list`, {
+        encoding: "utf-8",
+      });
+      expect(
+        result.includes("No topics found") || result.includes("Name"),
+      ).toBe(true);
     });
   });
 

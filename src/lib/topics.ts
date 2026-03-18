@@ -1,5 +1,9 @@
 import { randomUUID } from "crypto";
-import type { Topic, TopicSummary, GenerationMetadata } from "../types/index.js";
+import type {
+  Topic,
+  TopicSummary,
+  GenerationMetadata,
+} from "../types/index.js";
 import { getDatabase } from "./database.js";
 import { createGeneration, getSummaryGeneration } from "./generations.js";
 
@@ -41,10 +45,22 @@ function rowToSummary(row: SummaryRow): TopicSummary {
   };
 }
 
-export function createTopic(
-  name: string,
-  description?: string
-): Topic {
+/**
+ * Validate a topic name.
+ * @throws Error if the name is invalid
+ */
+function validateTopicName(name: string): void {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Topic name cannot be empty");
+  }
+  if (trimmed.length > 100) {
+    throw new Error("Topic name cannot exceed 100 characters");
+  }
+}
+
+export function createTopic(name: string, description?: string): Topic {
+  validateTopicName(name);
   const db = getDatabase();
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -67,11 +83,15 @@ export function createTopic(
 
 export function getTopicById(id: string): Topic | null {
   const db = getDatabase();
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT id, name, description, created_at, updated_at
     FROM topics
     WHERE id = ?
-  `).get(id) as TopicRow | undefined;
+  `,
+    )
+    .get(id) as TopicRow | undefined;
 
   if (!row) return null;
 
@@ -80,11 +100,15 @@ export function getTopicById(id: string): Topic | null {
 
 export function getTopicByName(name: string): Topic | null {
   const db = getDatabase();
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT id, name, description, created_at, updated_at
     FROM topics
     WHERE name = ?
-  `).get(name) as TopicRow | undefined;
+  `,
+    )
+    .get(name) as TopicRow | undefined;
 
   if (!row) return null;
 
@@ -93,18 +117,22 @@ export function getTopicByName(name: string): Topic | null {
 
 export function getAllTopics(): Topic[] {
   const db = getDatabase();
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT id, name, description, created_at, updated_at
     FROM topics
     ORDER BY name COLLATE NOCASE
-  `).all() as TopicRow[];
+  `,
+    )
+    .all() as TopicRow[];
 
   return rows.map(rowToTopic);
 }
 
 export function updateTopic(
   id: string,
-  updates: Partial<Pick<Topic, "name" | "description">>
+  updates: Partial<Pick<Topic, "name" | "description">>,
 ): Topic | null {
   const db = getDatabase();
   const now = new Date().toISOString();
@@ -137,7 +165,7 @@ export function updateTopic(
 export function renameTopic(oldName: string, newName: string): Topic | null {
   const db = getDatabase();
   const now = new Date().toISOString();
-  
+
   const stmt = db.prepare(`
     UPDATE topics
     SET name = ?, updated_at = ?
@@ -145,9 +173,9 @@ export function renameTopic(oldName: string, newName: string): Topic | null {
   `);
 
   const result = stmt.run(newName, now, oldName);
-  
+
   if (result.changes === 0) return null;
-  
+
   return getTopicByName(newName);
 }
 
@@ -159,11 +187,15 @@ export function deleteTopic(id: string): boolean {
 
 export function getNoteCountForTopic(topicId: string): number {
   const db = getDatabase();
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT COUNT(*) as count
     FROM note_topics
     WHERE topic_id = ?
-  `).get(topicId) as { count: number };
+  `,
+    )
+    .get(topicId) as { count: number };
 
   return row.count;
 }
@@ -179,16 +211,20 @@ export function getOrCreateDefaultTopic(): Topic {
 export function addSummaryVersion(
   topicId: string,
   content: string,
-  metadata?: GenerationMetadata
+  metadata?: GenerationMetadata,
 ): TopicSummary {
   const db = getDatabase();
-  
-  const maxVersionRow = db.prepare(`
+
+  const maxVersionRow = db
+    .prepare(
+      `
     SELECT MAX(version) as max_version
     FROM topic_summaries
     WHERE topic_id = ?
-  `).get(topicId) as { max_version: number | null };
-  
+  `,
+    )
+    .get(topicId) as { max_version: number | null };
+
   const nextVersion = (maxVersionRow.max_version || 0) + 1;
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -201,7 +237,7 @@ export function addSummaryVersion(
   stmt.run(id, topicId, nextVersion, content, now);
 
   if (metadata) {
-    createGeneration('topic_summary', id, metadata);
+    createGeneration("topic_summary", id, metadata);
   }
 
   return {
@@ -216,19 +252,23 @@ export function addSummaryVersion(
 
 export function getLatestSummary(topicId: string): TopicSummary | null {
   const db = getDatabase();
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT id, topic_id, version, content, generated_at
     FROM topic_summaries
     WHERE topic_id = ?
     ORDER BY version DESC
     LIMIT 1
-  `).get(topicId) as SummaryRow | undefined;
+  `,
+    )
+    .get(topicId) as SummaryRow | undefined;
 
   if (!row) return null;
 
   const summary = rowToSummary(row);
   const metadata = getSummaryGeneration(summary.id);
-  
+
   return {
     ...summary,
     generatedBy: metadata || undefined,
@@ -237,14 +277,18 @@ export function getLatestSummary(topicId: string): TopicSummary | null {
 
 export function getSummaryHistory(topicId: string): TopicSummary[] {
   const db = getDatabase();
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT id, topic_id, version, content, generated_at
     FROM topic_summaries
     WHERE topic_id = ?
     ORDER BY version DESC
-  `).all(topicId) as SummaryRow[];
+  `,
+    )
+    .all(topicId) as SummaryRow[];
 
-  return rows.map(row => {
+  return rows.map((row) => {
     const summary = rowToSummary(row);
     const metadata = getSummaryGeneration(summary.id);
     return {
